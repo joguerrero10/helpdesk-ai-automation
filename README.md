@@ -27,7 +27,7 @@ Usuario (WhatsApp / Instagram)
             ↓
      Motor de IA (NLP)
             ↓
- Base de datos / CRM (opcional)
+ Base de datos / CRM
 ```
 
 ---
@@ -93,7 +93,7 @@ POST /webhook   → Recepción de mensajes
 3. Backend procesa el mensaje
 4. IA interpreta intención
 5. Se genera respuesta automática
-6. (Opcional) Escalamiento a humano
+6. Escalamiento a humano
 
 ---
 
@@ -124,6 +124,16 @@ POST /webhook   → Recepción de mensajes
 * Entrenamiento personalizado del modelo
 
 ---
+
+📦 Versionado
+
+Este proyecto sigue SemVer:
+
+MAJOR → cambios incompatibles
+MINOR → nuevas funcionalidades
+PATCH → correcciones
+
+Versión actual: v1.0.0
 
 ## 👨‍💻 Autor
 

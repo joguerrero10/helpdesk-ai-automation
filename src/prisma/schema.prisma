@@ -1,0 +1,26 @@
+model Tenant {
+  id          String   @id @default(uuid())
+  name        String
+  phoneNumberId String @unique
+  createdAt   DateTime @default(now())
+
+  bots        Bot[]
+}
+
+model Bot {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  prompt    String   // personalidad del bot
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+model Conversation {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userPhone String
+  message   String
+  response  String
+  createdAt DateTime @default(now())
+}

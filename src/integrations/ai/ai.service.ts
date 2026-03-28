@@ -5,14 +5,13 @@ const openai = new OpenAI({
 });
 
 class AIService {
-  async getResponse(message: string): Promise<string> {
+  async generateResponse(message: string, systemPrompt: string): Promise<string> {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content:
-            "Eres un técnico experto en soporte IT. Responde claro, profesional y breve.",
+          content: systemPrompt,
         },
         {
           role: "user",

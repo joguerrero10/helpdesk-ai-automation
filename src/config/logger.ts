@@ -11,3 +11,10 @@ export const logger = {
     console.warn(`[WARN] ${message}`);
   },
 };
+
+export function logEvent(event: string, data: any = {}) {
+  console.log(
+    `[${new Date().toISOString()}] ${event}:`,
+    JSON.stringify(data, null, 2)
+  );
+}

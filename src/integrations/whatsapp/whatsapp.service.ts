@@ -1,7 +1,7 @@
 import axios from "axios";
 
 class WhatsAppService {
-  async sendMessage(to: string, message: string) {
+  async sendWhatsAppMessage(to: string, message: string) {
     try {
       await axios.post(
         `https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/messages`,

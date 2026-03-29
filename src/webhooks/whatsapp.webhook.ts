@@ -1,9 +1,8 @@
-import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
+import { logEvent } from "../config/logger";
 import aiService from "../integrations/ai/ai.service";
 import whatsappService from "../integrations/whatsapp/whatsapp.service";
-
-const prisma = new PrismaClient();
+import { handleFlows } from "./flow.handler";
 
 export const verifyWebhook = (req: Request, res: Response) => {
   const token = req.query["hub.verify_token"];
@@ -18,55 +17,46 @@ export const verifyWebhook = (req: Request, res: Response) => {
 
 export const receiveMessage = async (req: Request, res: Response) => {
   try {
-    const value = req.body.entry?.[0]?.changes?.[0]?.value;
+    const message = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
 
-    const message = value?.messages?.[0];
-    const phoneNumberId = value?.metadata?.phone_number_id;
-
-    if (message) {
-      const from = message.from;
-      const text = message.text?.body;
-
-      console.log("📩 Mensaje:", text);
-
-      // 🔹 1. Buscar tenant
-      const tenant = await prisma.tenant.findUnique({
-        where: { phoneNumberId }
-      });
-
-      if (!tenant) {
-        console.log("❌ Tenant no encontrado");
-        return res.sendStatus(200);
-      }
-
-      // 🔹 2. Obtener bot
-      const bot = await prisma.bot.findFirst({
-        where: { tenantId: tenant.id }
-      });
-
-      // 🔹 3. IA personalizada
-      const aiResponse = await aiService.generateResponse(
-        text || "",
-        bot?.prompt || "Eres un asistente técnico"
-      );
-
-      // 🔹 4. Responder WhatsApp
-      await whatsappService.sendMessage(from, aiResponse);
-
-      // 🔹 5. Guardar conversación
-      await prisma.conversation.create({
-        data: {
-          tenantId: tenant.id,
-          userPhone: from,
-          message: text || "",
-          response: aiResponse
-        }
-      });
+    // Ignorar mensajes vacíos, notificaciones, etc
+    if (!message || !message.text?.body) {
+      return res.sendStatus(200);
     }
 
-    res.sendStatus(200);
-  } catch (error) {
+    const from = message.from;
+    const text = message.text.body.trim().toLowerCase();
+
+    // Log de entrada
+    logEvent("MENSAJE_RECIBIDO", { user: from, message: text });
+    console.log("📩 Mensaje recibido:", text);
+
+    // 🔥 PRIMERO INTENTAMOS EL FLUJO
+    const flowResponse = handleFlows(text, from);
+
+    if (flowResponse) {
+      await whatsappService.sendWhatsAppMessage(from, flowResponse);
+
+      // Log de salida del FLOW
+      logEvent("RESPUESTA_ENVIADA", { reply: flowResponse });
+
+      return res.sendStatus(200);
+    }
+
+    // 🔥 SI NO HAY FLUJO, ENTONCES LA IA RESPONDE
+    const aiResponse = await aiService.generateResponse(from, text);
+
+    await whatsappService.sendWhatsAppMessage(from, aiResponse);
+
+    // Log de salida IA
+    logEvent("RESPUESTA_ENVIADA", { reply: aiResponse });
+
+    return res.sendStatus(200);
+  } catch (error: any) {
     console.error("❌ ERROR:", error);
-    res.sendStatus(500);
+
+    logEvent("ERROR_IA", { error: error.message });
+
+    return res.sendStatus(500);
   }
 };

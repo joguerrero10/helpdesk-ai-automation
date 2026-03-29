@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js"
   },
   "repository": {
@@ -21,13 +21,17 @@
   },
   "homepage": "https://github.com/joguerrero10/helpdesk-ai-automation#readme",
   "dependencies": {
+    "@prisma/client": "^7.6.0",
     "axios": "^1.13.6",
     "dotenv": "^17.3.1",
-    "express": "^5.2.1"
+    "express": "^4.22.1",
+    "groq-sdk": "^1.1.2",
+    "openai": "^6.33.0"
   },
   "devDependencies": {
-    "@types/express": "^5.0.6",
+    "@types/express": "^4.17.25",
     "@types/node": "^25.5.0",
+    "prisma": "^7.6.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^6.0.2"
   }

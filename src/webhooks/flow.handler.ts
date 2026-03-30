@@ -1,4 +1,4 @@
-import { getTicketByCodeSecure } from "../services/tenant.service";
+import { getTenantByPhoneNumberId, getTicketByCodeSecure } from "../services/tenant.service";
 import { createTicket } from "../services/ticket.service";
 import { getUserState, setUserState } from "../state/userState";
 
@@ -64,6 +64,39 @@ Entre más detalles, mejor podré ayudarte. 😊
 
 Un agente revisará tu caso pronto.  
 ¡Gracias por tu paciencia! 🙌
+`;
+  }
+
+  // ===== OPCIÓN 2: SOPORTE HUMANO =====
+  if (msg === "2") {
+    setUserState(user, null);
+
+    // 🔗 Obtener tenant dinámico
+    const tenant = await getTenantByPhoneNumberId(phoneNumberId);
+
+    const supportNumber = tenant.supportNumber;
+    console.log("TENANT:", tenant);
+    if (!supportNumber) {
+      return "⚠️ No hay un número de soporte configurado para esta empresa.";
+    }
+
+    const message = encodeURIComponent(
+      `Hola, necesito soporte técnico. Mi número es ${user}`
+    );
+
+    const link = `https://wa.me/${supportNumber}?text=${message}`;
+
+    return `
+👨‍💻 *Soporte humano*
+
+Te voy a conectar con un agente para ayudarte mejor.
+
+👉 ${link}
+
+También puedes copiar este número:
++${supportNumber}
+
+Un agente te atenderá en breve 🙌
 `;
   }
 

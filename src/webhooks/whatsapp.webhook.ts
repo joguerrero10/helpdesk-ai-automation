@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { logEvent } from "../config/logger";
+import aiService from "../integrations/ai/ai.service";
 import whatsappService from "../integrations/whatsapp/whatsapp.service";
 import { handleFlows } from "./flow.handler";
 
@@ -73,14 +74,12 @@ export const receiveMessage = async (req: Request, res: Response) => {
       return res.sendStatus(200);
     }
 
-    // Si quieres IA solo cuando NO hay flujo activo
     if (rawText && !flowResponse) {
-      // Aquí podrías conectar IA si quieres
-      // const aiResponse = await aiService.generateResponse(from, rawText);
+      const aiResponse = await aiService.generateResponse(from, rawText);
 
-      // await whatsappService.sendWhatsAppMessage(from, aiResponse);
+      await whatsappService.sendWhatsAppMessage(from, aiResponse);
 
-      // logEvent("RESPUESTA_ENVIADA", { reply: aiResponse });
+      logEvent("RESPUESTA_ENVIADA", { reply: aiResponse });
     }
 
     return res.sendStatus(200);

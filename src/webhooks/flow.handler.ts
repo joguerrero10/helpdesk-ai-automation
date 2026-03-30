@@ -45,8 +45,7 @@ export const handleFlows = async (
 1️⃣ Crear ticket  
 2️⃣ Soporte humano  
 3️⃣ Estado de ticket  
-4️⃣ Enviar archivo  
-5️⃣ Ayuda  
+4️⃣ Ayuda   
 
 Escribe el número 👇
 `;
@@ -70,7 +69,17 @@ Escribe el número 👇
         `Hola, necesito soporte. Usuario: ${user}`
       );
 
-      return `👨‍💻 https://wa.me/${tenant.supportNumber}?text=${msg}`;
+      return (
+        "👨‍💻 *Conectándote con Soporte Humano*\n\n" +
+        "Estamos enviando tu caso a uno de nuestros agentes reales.\n\n" +
+        "📌 *¿Qué puedes esperar ahora?*\n" +
+        "• Un agente te responderá personalmente\n" +
+        "• Podrás explicar tu caso en detalle\n" +
+        "• Si es necesario, podrán hacer una videollamada o pedir más información\n\n" +
+        "👉 Haz clic en este enlace para continuar:\n" +
+        `👨‍💻 https://wa.me/${tenant.supportNumber}\n\n` +
+        "📞 *Horario de atención:* 8:00 AM – 6:00 PM"
+      );
     }
 
     if (["3", "estado"].includes(normalizedMsg)) {
@@ -78,12 +87,7 @@ Escribe el número 👇
       return "🔍 Envíame el ID del ticket";
     }
 
-    if (["4", "archivo"].includes(normalizedMsg)) {
-      await setUserState(user, { stage: "ENVIAR_ARCHIVO" });
-      return "📎 Envíame el archivo";
-    }
-
-    if (["5", "ayuda"].includes(normalizedMsg)) {
+    if (["4", "ayuda"].includes(normalizedMsg)) {
       await setUserState(user, { stage: "AYUDA" });
 
       return `
@@ -94,8 +98,7 @@ Selecciona una categoría para aprender:
 1️⃣ ¿Cómo crear un ticket?  
 2️⃣ ¿Qué hace Soporte Humano?  
 3️⃣ ¿Cómo consultar el estado de un ticket?  
-4️⃣ ¿Cómo enviar archivos al sistema?  
-5️⃣ Volver al menú principal
+4️⃣ Volver al menú principal
 
 Escribe un número 👇
 `;
@@ -197,9 +200,14 @@ Un ticket es un reporte de un problema o solicitud.
 1. Escribe *1* en el menú principal  
 2. Describe tu problema  
 3. Opcional: envía un archivo  
+Puedes enviar imágenes, PDFs o capturas.
+Sirve para que soporte entienda mejor el problema.
 
 Ejemplo:  
 "Mi impresora no imprime desde ayer."
+
+Ejemplo:  
+"Adjunto captura del error."
 
 ✏️ Escribe *menu* para regresar.
 `;
@@ -240,21 +248,6 @@ Te permite saber si está:
     }
 
     if (normalizedMsg === "4") {
-      return `
-📎 *Enviar archivos al sistema*
-
-Puedes enviar imágenes, PDFs o capturas.
-
-Sirve para que soporte entienda mejor el problema.
-
-Ejemplo:  
-"Adjunto captura del error."
-
-✏️ Escribe *menu* para regresar.
-`;
-    }
-
-    if (normalizedMsg === "5") {
       await setUserState(user, { stage: "MENU" });
       return "📋 Volviendo al menú principal...\n\nEscribe *menu* si no aparece.";
     }
@@ -262,7 +255,7 @@ Ejemplo:
     return `
 ❌ Opción inválida en la ayuda.
 
-Escribe un número del *1 al 5*.  
+Escribe un número del *1 al 4*.  
 O escribe *menu* para regresar.
 `;
   }

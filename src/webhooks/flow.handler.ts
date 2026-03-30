@@ -33,15 +33,8 @@ export const handleFlows = async (
     await setUserState(user, userState);
   }
 
-  console.log("STATE:", userState);
-  console.log("MSG:", normalizedMsg);
-
-  // =========================
-  // 🔥 COMANDOS GLOBALES
-  // =========================
   const GLOBAL_COMMANDS = ["menu", "hola", "inicio", "empezar"];
 
-  // Si escribe un comando global → siempre reinicia el menú
   if (GLOBAL_COMMANDS.includes(normalizedMsg)) {
     await setUserState(user, { stage: "MENU" });
 
@@ -59,9 +52,6 @@ Escribe el número 👇
 `;
   }
 
-  // =========================
-  // 🔥 MENU PRINCIPAL (CORREGIDO)
-  // =========================
   if (userState.stage === "MENU") {
 
     if (["1", "crear", "ticket"].includes(normalizedMsg)) {
@@ -94,27 +84,30 @@ Escribe el número 👇
     }
 
     if (["5", "ayuda"].includes(normalizedMsg)) {
-      return `
-❓ *Ayuda*
+      await setUserState(user, { stage: "AYUDA" });
 
-1️⃣ Crear ticket  
-2️⃣ Estado  
-3️⃣ Problemas comunes  
-4️⃣ Soporte humano  
+      return `
+📘 *Centro de Ayuda – Aprende a usar Abby*
+
+Selecciona una categoría para aprender:
+
+1️⃣ ¿Cómo crear un ticket?  
+2️⃣ ¿Qué hace Soporte Humano?  
+3️⃣ ¿Cómo consultar el estado de un ticket?  
+4️⃣ ¿Cómo enviar archivos al sistema?  
+5️⃣ Volver al menú principal
+
+Escribe un número 👇
 `;
     }
 
-    // ❌ Si no coincide con ninguna opción del menú
     return `
-❌ *Palabra inválida*
+❌ *Opción inválida*
 
 Por favor escribe: *menu*, *hola*, *inicio* o *empezar* para ver el menú.
 `;
   }
 
-  // =========================
-  // 🔥 CREAR TICKET
-  // =========================
   if (userState.stage === "CREAR_TICKET") {
 
     if (!text || text.trim().length < 2) {
@@ -139,9 +132,6 @@ O escribe *menu* para volver al menú principal.
 `;
   }
 
-  // =========================
-  // 🔥 CONSULTAR TICKET
-  // =========================
   if (userState.stage === "CONSULTAR_TICKET") {
 
     const code = parseInt(normalizedMsg);
@@ -192,6 +182,88 @@ O escribe *menu* para volver al menú principal.
 
 Se adjuntó a tu ticket 🎫  
 Escribe *menu* para volver al inicio.
+`;
+  }
+
+  if (userState.stage === "AYUDA") {
+
+    if (normalizedMsg === "1") {
+      return `
+📝 *¿Cómo crear un ticket?*
+
+Un ticket es un reporte de un problema o solicitud.
+
+🔹 Pasos:
+1. Escribe *1* en el menú principal  
+2. Describe tu problema  
+3. Opcional: envía un archivo  
+
+Ejemplo:  
+"Mi impresora no imprime desde ayer."
+
+✏️ Escribe *menu* para regresar.
+`;
+    }
+
+    if (normalizedMsg === "2") {
+      return `
+👨‍💻 *¿Qué es Soporte Humano?*
+
+Es acceso directo a un agente real.
+
+🔹 Úsalo cuando:
+- El bot no responde lo que necesitas  
+- Tu caso es urgente  
+- Requieres asistencia personalizada  
+
+Abby enviará un enlace directo a WhatsApp.
+
+✏️ Escribe *menu* para regresar.
+`;
+    }
+
+    if (normalizedMsg === "3") {
+      return `
+📊 *Consultar el estado de un ticket*
+
+Te permite saber si está:
+📥 Recibido  
+🛠️ En proceso  
+✅ Resuelto  
+
+🔹 Cómo usarlo:
+1. Escribe *3*  
+2. Envía el ID del ticket  
+
+✏️ Escribe *menu* para regresar.
+`;
+    }
+
+    if (normalizedMsg === "4") {
+      return `
+📎 *Enviar archivos al sistema*
+
+Puedes enviar imágenes, PDFs o capturas.
+
+Sirve para que soporte entienda mejor el problema.
+
+Ejemplo:  
+"Adjunto captura del error."
+
+✏️ Escribe *menu* para regresar.
+`;
+    }
+
+    if (normalizedMsg === "5") {
+      await setUserState(user, { stage: "MENU" });
+      return "📋 Volviendo al menú principal...\n\nEscribe *menu* si no aparece.";
+    }
+
+    return `
+❌ Opción inválida en la ayuda.
+
+Escribe un número del *1 al 5*.  
+O escribe *menu* para regresar.
 `;
   }
 

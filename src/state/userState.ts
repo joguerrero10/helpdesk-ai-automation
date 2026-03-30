@@ -13,11 +13,7 @@ export const getUserState = async (user: string) => {
 export const setUserState = async (user: string, state: any) => {
   const key = `${PREFIX}${user}`;
 
-  console.log("💾 Guardando en Redis:", key, state);
-
   await redis.set(key, JSON.stringify(state), "EX", 3600); // ⏱ 1 hora
 
   const saved = await redis.get(key);
-
-  console.log("📦 Guardado en Redis:", saved);
 };

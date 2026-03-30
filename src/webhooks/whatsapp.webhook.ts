@@ -53,8 +53,6 @@ export const receiveMessage = async (req: Request, res: Response) => {
       media,
     });
 
-    console.log("📩 Mensaje recibido:", text || "MEDIA");
-
     const phoneNumberId =
       req.body.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
 

@@ -17,45 +17,76 @@ export const verifyWebhook = (req: Request, res: Response) => {
 
 export const receiveMessage = async (req: Request, res: Response) => {
   try {
-    const message = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+    const message =
+      req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
 
-    // Ignorar mensajes vacíos, notificaciones, etc
-    if (!message || !message.text?.body) {
+    if (!message) {
       return res.sendStatus(200);
     }
 
     const from = message.from;
-    const text = message.text.body.trim().toLowerCase();
 
-    // Log de entrada
-    logEvent("MENSAJE_RECIBIDO", { user: from, message: text });
-    console.log("📩 Mensaje recibido:", text);
+    const rawText = message.text?.body?.trim() || "";
+    const text = rawText.toLowerCase();
 
-    // 🔥 PRIMERO INTENTAMOS EL FLUJO
-    const flowResponse = handleFlows(text, from);
+    let media: any = null;
+
+    if (message.image) {
+      media = {
+        type: "image",
+        id: message.image.id,
+        mime_type: message.image.mime_type,
+      };
+    }
+
+    if (message.document) {
+      media = {
+        type: "document",
+        id: message.document.id,
+        filename: message.document.filename,
+        mime_type: message.document.mime_type,
+      };
+    }
+
+    logEvent("MENSAJE_RECIBIDO", {
+      user: from,
+      message: text || "[MEDIA]",
+      media,
+    });
+
+    const phoneNumberId =
+      req.body.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
+
+    const devPhoneNumberId = "test-1";
+
+    const flowResponse = await handleFlows(
+      text,
+      from,
+      phoneNumberId || devPhoneNumberId,
+      media
+    );
 
     if (flowResponse) {
       await whatsappService.sendWhatsAppMessage(from, flowResponse);
 
-      // Log de salida del FLOW
       logEvent("RESPUESTA_ENVIADA", { reply: flowResponse });
 
       return res.sendStatus(200);
     }
 
-    // 🔥 SI NO HAY FLUJO, ENTONCES LA IA RESPONDE
-    const aiResponse = await aiService.generateResponse(from, text);
+    if (rawText && !flowResponse) {
+      const aiResponse = await aiService.generateResponse(from, rawText);
 
-    await whatsappService.sendWhatsAppMessage(from, aiResponse);
+      await whatsappService.sendWhatsAppMessage(from, aiResponse);
 
-    // Log de salida IA
-    logEvent("RESPUESTA_ENVIADA", { reply: aiResponse });
+      logEvent("RESPUESTA_ENVIADA", { reply: aiResponse });
+    }
 
     return res.sendStatus(200);
   } catch (error: any) {
     console.error("❌ ERROR:", error);
 
-    logEvent("ERROR_IA", { error: error.message });
+    logEvent("ERROR_WEBHOOK", { error: error.message });
 
     return res.sendStatus(500);
   }

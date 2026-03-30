@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import { logEvent } from "../config/logger";
-import aiService from "../integrations/ai/ai.service";
 import whatsappService from "../integrations/whatsapp/whatsapp.service";
 import { handleFlows } from "./flow.handler";
 
@@ -17,22 +16,18 @@ export const verifyWebhook = (req: Request, res: Response) => {
 
 export const receiveMessage = async (req: Request, res: Response) => {
   try {
-    const message = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+    const message =
+      req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
 
-    // Si no hay mensaje → ignorar
     if (!message) {
       return res.sendStatus(200);
     }
 
     const from = message.from;
 
-    // 🔹 TEXTO
-    let text = "";
-    if (message.text?.body) {
-      text = message.text.body.trim().toLowerCase();
-    }
+    const rawText = message.text?.body?.trim() || "";
+    const text = rawText.toLowerCase();
 
-    // 🔹 ARCHIVOS (imagen o documento)
     let media: any = null;
 
     if (message.image) {
@@ -52,7 +47,6 @@ export const receiveMessage = async (req: Request, res: Response) => {
       };
     }
 
-    // Log de entrada
     logEvent("MENSAJE_RECIBIDO", {
       user: from,
       message: text || "[MEDIA]",
@@ -61,13 +55,11 @@ export const receiveMessage = async (req: Request, res: Response) => {
 
     console.log("📩 Mensaje recibido:", text || "MEDIA");
 
-    // 🔗 Obtener phoneNumberId (multi-tenant)
     const phoneNumberId =
       req.body.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
 
-    const devPhoneNumberId = "test-1"; // 👈 fallback en desarrollo
+    const devPhoneNumberId = "test-1";
 
-    // 🔥 FLOW (ahora con media)
     const flowResponse = await handleFlows(
       text,
       from,
@@ -75,7 +67,7 @@ export const receiveMessage = async (req: Request, res: Response) => {
       media
     );
 
-    if (flowResponse && typeof flowResponse === "string") {
+    if (flowResponse) {
       await whatsappService.sendWhatsAppMessage(from, flowResponse);
 
       logEvent("RESPUESTA_ENVIADA", { reply: flowResponse });
@@ -83,20 +75,21 @@ export const receiveMessage = async (req: Request, res: Response) => {
       return res.sendStatus(200);
     }
 
-    // 🤖 IA SOLO SI HAY TEXTO
-    if (text) {
-      const aiResponse = await aiService.generateResponse(from, text);
+    // Si quieres IA solo cuando NO hay flujo activo
+    if (rawText && !flowResponse) {
+      // Aquí podrías conectar IA si quieres
+      // const aiResponse = await aiService.generateResponse(from, rawText);
 
-      await whatsappService.sendWhatsAppMessage(from, aiResponse);
+      // await whatsappService.sendWhatsAppMessage(from, aiResponse);
 
-      logEvent("RESPUESTA_ENVIADA", { reply: aiResponse });
+      // logEvent("RESPUESTA_ENVIADA", { reply: aiResponse });
     }
 
     return res.sendStatus(200);
   } catch (error: any) {
     console.error("❌ ERROR:", error);
 
-    logEvent("ERROR_IA", { error: error.message });
+    logEvent("ERROR_WEBHOOK", { error: error.message });
 
     return res.sendStatus(500);
   }

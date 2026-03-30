@@ -1,83 +1,87 @@
 import { getTenantByPhoneNumberId, getTicketByCodeSecure } from "../services/tenant.service";
-import { createTicket } from "../services/ticket.service";
+import {
+  addAttachmentToTicket,
+  createTicket,
+} from "../services/ticket.service";
 import { getUserState, setUserState } from "../state/userState";
 
 export const handleFlows = async (
   text: string,
   user: string,
-  phoneNumberId: string
+  phoneNumberId: string,
+  media?: any
 ) => {
-  if (!text) {
+  if (!text && !media) {
     return "⚠️ No recibí ningún mensaje. Escribe *menu* para comenzar.";
   }
 
-  const msg = text.toLowerCase().trim();
+  const msg = text?.toLowerCase().trim() || "";
   const userState = getUserState(user);
 
-  // DEBUG (puedes quitar luego)
-  console.log("STATE:", userState.stage);
+  console.log("STATE:", userState);
   console.log("MSG:", msg);
+  console.log("MEDIA:", media);
 
-  // ===== COMANDO GLOBAL MENU =====
+  // ===== MENU =====
   if (["hola", "menu", "inicio", "empezar"].includes(msg)) {
-    setUserState(user, "MENU");
+    setUserState(user, { stage: "MENU" });
 
     return `
 👋 ¡Hola! Soy Abby tu asistente virtual.
 
 📌 *Opciones disponibles:*
-1️⃣ Crear un ticket  
+1️⃣ Crear un ticket sin archivo adjunto
 2️⃣ Hablar con soporte humano  
 3️⃣ Estado de mi ticket  
-4️⃣ Enviar archivo  
+4️⃣ Enviar archivo + Crear un ticket  
 5️⃣ Ayuda general
 
 Escribe el número de la opción. 😊
 `;
   }
 
-  // ===== OPCIÓN 1: CREAR TICKET =====
+  // ===== OPCIÓN 1 =====
   if (msg === "1") {
-    setUserState(user, "CREAR_TICKET");
+    setUserState(user, { stage: "CREAR_TICKET" });
 
     return `
 📝 Perfecto, vamos a crear un ticket.
 
-Por favor descríbeme el problema que estás teniendo con tu PC.  
-Entre más detalles, mejor podré ayudarte. 😊
+Por favor descríbeme el problema que estás teniendo con tu PC.
 `;
   }
 
-  // ===== GUARDAR TICKET =====
-  if (userState.stage === "CREAR_TICKET") {
-    setUserState(user, null);
-
+  // ===== CREAR TICKET =====
+  if (userState?.stage === "CREAR_TICKET") {
     const descripcion = text;
 
     const ticket = await createTicket(user, descripcion, phoneNumberId);
 
+    // 👇 ahora guardamos ticketId para archivo
+    setUserState(user, {
+      stage: "ENVIAR_ARCHIVO",
+      ticketId: ticket.id,
+    });
+
     return `
-🎫 *Ticket creado exitosamente*
+🎫 *Ticket creado*
 
-🆔 ID: *${ticket.code}*  
-📝 Descripción: ${descripcion}
+🆔 ID: ${ticket.code}
 
-Un agente revisará tu caso pronto.  
-¡Gracias por tu paciencia! 🙌
+Ahora puedes enviar un archivo si lo deseas 📎
+O escribe *menu* para volver.
 `;
   }
 
-  // ===== OPCIÓN 2: SOPORTE HUMANO =====
+  // ===== OPCIÓN 2 =====
   if (msg === "2") {
     setUserState(user, null);
 
-    // 🔗 Obtener tenant dinámico
     const tenant = await getTenantByPhoneNumberId(phoneNumberId);
-
     const supportNumber = tenant.supportNumber;
-    console.log("TENANT:", tenant);
+
     if (!supportNumber) {
-      return "⚠️ No hay un número de soporte configurado para esta empresa.";
+      return "⚠️ No hay número de soporte configurado.";
     }
 
     const message = encodeURIComponent(
@@ -89,36 +93,25 @@ Un agente revisará tu caso pronto.
     return `
 👨‍💻 *Soporte humano*
 
-Te voy a conectar con un agente para ayudarte mejor.
-
 👉 ${link}
-
-También puedes copiar este número:
-+${supportNumber}
-
-Un agente te atenderá en breve 🙌
 `;
   }
 
-  // ===== OPCIÓN 3: CONSULTAR TICKET =====
+  // ===== OPCIÓN 3 =====
   if (msg === "3") {
-    setUserState(user, "CONSULTAR_TICKET");
+    setUserState(user, { stage: "CONSULTAR_TICKET" });
 
-    return `
-🔍 Consulta de ticket
-
-Por favor envíame el ID del ticket que deseas consultar.
-`;
+    return "🔍 Envíame el ID del ticket";
   }
 
-  // ===== BUSCAR TICKET =====
-  if (userState.stage === "CONSULTAR_TICKET") {
+  // ===== CONSULTAR =====
+  if (userState?.stage === "CONSULTAR_TICKET") {
     setUserState(user, null);
 
     const code = parseInt(text);
 
     if (isNaN(code)) {
-      return "⚠️ El ID debe ser un número válido.";
+      return "⚠️ ID inválido";
     }
 
     const ticket = await getTicketByCodeSecure(
@@ -128,18 +121,90 @@ Por favor envíame el ID del ticket que deseas consultar.
     );
 
     if (!ticket) {
-      return "❌ No encontré ese ticket o no tienes acceso a él.";
+      return "❌ No tienes acceso a ese ticket";
     }
 
     return `
-📄 *Estado del Ticket*
+📄 Ticket
 
-🆔 ID: *${ticket.code}*
-📌 Estado: *${ticket.status}*
-📝 Descripción: ${ticket.description}
+🆔 ${ticket.code}
+📌 ${ticket.status}
+📝 ${ticket.description}
 `;
   }
 
-  // ===== RESPUESTA POR DEFECTO =====
-  return "🤖 No entendí tu mensaje. Escribe *menu* para ver las opciones disponibles.";
+  // ===== OPCIÓN 4 =====
+  if (msg === "4") {
+    setUserState(user, { stage: "ENVIAR_ARCHIVO" });
+
+    return "📎 Envíame el archivo";
+  }
+
+  // ===== GUARDAR ARCHIVO =====
+  if (userState?.stage === "ENVIAR_ARCHIVO") {
+    if (!media) {
+      return "⚠️ Debes enviar un archivo.";
+    }
+
+    const ticketId = userState.ticketId;
+
+    if (!ticketId) {
+      setUserState(user, { stage: "CREAR_TICKET_DESDE_ARCHIVO", media });
+
+      return `
+📎 Recibí tu archivo
+
+Para poder ayudarte necesito que me describas el problema.
+
+Escribe qué sucede con tu equipo 💻
+`;
+    }
+    const tenant = await getTenantByPhoneNumberId(phoneNumberId);
+
+    await addAttachmentToTicket(
+      ticketId,
+      tenant.id,
+      userState.media
+    );
+    setUserState(user, null);
+
+    return `
+📎 Archivo guardado correctamente
+
+Se adjuntó a tu ticket 🎫
+`;
+  }
+  // ===== CREAR TICKET DESDE ARCHIVO =====
+  if (userState?.stage === "CREAR_TICKET_DESDE_ARCHIVO") {
+    const descripcion = text;
+
+    const ticket = await createTicket(user, descripcion, phoneNumberId);
+
+    // 🔥 usamos el media guardado
+    await addAttachmentToTicket(ticket.id, phoneNumberId, userState.media);
+
+    setUserState(user, null);
+
+    return `
+🎫 Ticket creado con archivo adjunto
+
+🆔 ID: ${ticket.code}
+
+Un agente revisará tu caso 🙌
+`;
+  }
+
+  // ===== OPCIÓN 5 =====
+  if (msg === "5") {
+    return `
+❓ *Ayuda*
+
+1 → Crear ticket  
+2 → Soporte humano  
+3 → Ver ticket  
+4 → Enviar archivo
+`;
+  }
+
+  return "🤖 No entendí tu mensaje. Escribe *menu*.";
 };

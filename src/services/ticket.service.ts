@@ -32,3 +32,29 @@ export const createTicket = async (
 
   return ticket;
 };
+
+export const addAttachmentToTicket = async (
+  ticketId: string,
+  tenantId: string,
+  media: any
+) => {
+  const ticket = await prisma.ticket.findUnique({
+    where: { id: ticketId },
+  });
+  return await prisma.attachment.create({
+    data: {
+      type: media.type,
+      fileId: media.id,
+      mimeType: media.mime_type,
+      fileName: media.filename || null,
+
+      ticket: {
+        connect: { id: ticketId },
+      },
+
+      tenant: {
+        connect: { id: ticket.tenantId },
+      },
+    },
+  });
+};

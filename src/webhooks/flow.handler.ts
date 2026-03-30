@@ -1,7 +1,8 @@
+import { createTicket } from "../services/ticket.service";
 import { getUserState, setUserState } from "../state/userState";
 
-export const handleFlows = (text: string, user: string) => {
-  if (!text) return null;
+export const handleFlows = async (text: string, user: string) => {
+  if (!text) return "⚠️ No recibí ningún mensaje. Escribe *menu* para comenzar.";
 
   const msg = text.toLowerCase().trim();
   const userState = getUserState(user);
@@ -11,7 +12,7 @@ export const handleFlows = (text: string, user: string) => {
   if (triggers.includes(msg)) {
     setUserState(user, "MENU");
     return `
-👋 ¡Hola! Soy tu asistente virtual.
+👋 ¡Hola! Soy Abby tu asistente virtual.
 
 📌 *Opciones disponibles:*
 1️⃣ Crear un ticket  
@@ -41,12 +42,13 @@ Entre más detalles, mejor podré ayudarte. 😊
     setUserState(user, null);
 
     const descripcion = text;
-    const ticketId = Math.floor(Math.random() * 90000 + 10000);
+
+    const ticket = await createTicket(user, descripcion);
 
     return `
 🎫 *Ticket creado exitosamente*
 
-🆔 ID: *${ticketId}*  
+🆔 ID: *${ticket.code}*  
 📝 Descripción: ${descripcion}
 
 Un agente revisará tu caso pronto.  
@@ -54,6 +56,6 @@ Un agente revisará tu caso pronto.
 `;
   }
 
-  // Si no coincide ningún flow → devolver null para que responda la IA
-  return null;
+  // Respuesta por defecto (NUNCA null)
+  return "🤖 No entendí tu mensaje. Escribe *menu* para ver las opciones disponibles.";
 };

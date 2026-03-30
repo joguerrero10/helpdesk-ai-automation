@@ -29,7 +29,10 @@ export const receiveMessage = async (req: Request, res: Response) => {
     logEvent("MENSAJE_RECIBIDO", { user: from, message: text });
     console.log("📩 Mensaje recibido:", text);
 
-    const flowResponse = await handleFlows(text, from);
+    const phoneNumberId =
+      req.body.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
+
+    const flowResponse = await handleFlows(text, from, phoneNumberId);
 
     if (flowResponse && typeof flowResponse === "string") {
       await whatsappService.sendWhatsAppMessage(from, flowResponse);

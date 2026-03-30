@@ -1,4 +1,7 @@
-import { getTenantByPhoneNumberId, getTicketByCodeSecure } from "../services/tenant.service";
+import {
+  getTenantByPhoneNumberId,
+  getTicketByCodeSecure,
+} from "../services/tenant.service";
 import {
   addAttachmentToTicket,
   createTicket,
@@ -15,49 +18,182 @@ export const handleFlows = async (
     return "⚠️ No recibí ningún mensaje. Escribe *menu* para comenzar.";
   }
 
-  const msg = text?.toLowerCase().trim() || "";
-  const userState = getUserState(user);
+  const normalizedMsg = text?.toLowerCase().trim() || "";
+
+  // 🔥 FORZAR ESTADO SI ES NULL
+  let userState = getUserState(user);
+
+  if (!userState || !userState.stage) {
+    userState = { stage: "MENU" };
+    setUserState(user, userState);
+  }
 
   console.log("STATE:", userState);
-  console.log("MSG:", msg);
-  console.log("MEDIA:", media);
+  console.log("MSG:", normalizedMsg);
 
-  // ===== MENU =====
-  if (["hola", "menu", "inicio", "empezar"].includes(msg)) {
+  // =========================
+  // 🔥 COMANDOS GLOBALES (PRIORIDAD MÁXIMA)
+  // =========================
+  const GLOBAL_COMMANDS = ["menu", "hola", "inicio", "empezar"];
+
+  if (GLOBAL_COMMANDS.includes(normalizedMsg)) {
     setUserState(user, { stage: "MENU" });
 
     return `
 👋 ¡Hola! Soy Abby tu asistente virtual.
 
 📌 *Opciones disponibles:*
-1️⃣ Crear un ticket sin archivo adjunto
-2️⃣ Hablar con soporte humano  
-3️⃣ Estado de mi ticket  
-4️⃣ Enviar archivo + Crear un ticket  
-5️⃣ Ayuda general
+1️⃣ Crear ticket  
+2️⃣ Soporte humano  
+3️⃣ Estado de ticket  
+4️⃣ Enviar archivo  
+5️⃣ Ayuda general  
 
-Escribe el número de la opción. 😊
+Escribe el número 👇
 `;
   }
 
-  // ===== OPCIÓN 1 =====
-  if (msg === "1") {
-    setUserState(user, { stage: "CREAR_TICKET" });
+  // =========================
+  // 🔥 MENU PRINCIPAL
+  // =========================
+  if (userState.stage === "MENU") {
+
+    if (["1", "crear", "crear ticket"].includes(normalizedMsg)) {
+      setUserState(user, { stage: "CREAR_TICKET" });
+      return "📝 Describe tu problema para crear el ticket";
+    }
+
+    if (["2", "soporte"].includes(normalizedMsg)) {
+      const tenant = await getTenantByPhoneNumberId(phoneNumberId);
+      const supportNumber = tenant.supportNumber;
+
+      if (!supportNumber) {
+        return "⚠️ No hay número de soporte configurado.";
+      }
+
+      const message = encodeURIComponent(
+        `Hola, necesito soporte técnico. Mi número es ${user}`
+      );
+
+      return `👨‍💻 https://wa.me/${supportNumber}?text=${message}`;
+    }
+
+    if (["3", "estado", "ticket"].includes(normalizedMsg)) {
+      setUserState(user, { stage: "CONSULTAR_TICKET" });
+
+      return `
+🔍 *Consulta de Ticket*
+
+Envía el ID del ticket.
+
+💡 Ejemplo: 12345
+
+O escribe *menu* para volver.
+`;
+    }
+
+    if (["4", "archivo"].includes(normalizedMsg)) {
+      setUserState(user, { stage: "ENVIAR_ARCHIVO" });
+      return "📎 Envíame el archivo";
+    }
+
+    if (["5", "ayuda"].includes(normalizedMsg)) {
+      setUserState(user, { stage: "AYUDA_GENERAL" });
+
+      return `
+❓ *Ayuda General*
+
+1️⃣ Crear ticket  
+2️⃣ Estado de ticket  
+3️⃣ Problemas comunes  
+4️⃣ Soporte humano  
+
+O escribe *menu* para volver.
+`;
+    }
+
+    return "🤖 Escribe *menu* para comenzar.";
+  }
+
+  // =========================
+  // 🔥 AYUDA GENERAL
+  // =========================
+  if (userState.stage === "AYUDA_GENERAL") {
+
+    if (["1", "crear"].includes(normalizedMsg)) {
+      setUserState(user, { stage: "CREAR_TICKET" });
+      return "📝 Describe tu problema para crear el ticket";
+    }
+
+    if (
+      normalizedMsg === "2" ||
+      normalizedMsg.includes("estado") ||
+      normalizedMsg.includes("ticket")
+    ) {
+      setUserState(user, { stage: "CONSULTAR_TICKET" });
+
+      return `
+🔍 *Consulta de Ticket*
+
+Envía el ID del ticket.
+
+💡 Ejemplo: 12345
+
+O escribe *menu* para volver.
+`;
+    }
+
+    if (normalizedMsg === "3") {
+      return `
+⚙️ *Problemas comunes*
+
+🔹 No enciende el equipo  
+🔹 Internet lento  
+🔹 Error en sistema  
+🔹 Pantalla azul  
+
+👉 Describe tu problema y te ayudo.
+`;
+    }
+
+    if (["4", "soporte"].includes(normalizedMsg)) {
+      const tenant = await getTenantByPhoneNumberId(phoneNumberId);
+      const supportNumber = tenant.supportNumber;
+
+      if (!supportNumber) {
+        return "⚠️ No hay número de soporte configurado.";
+      }
+
+      const message = encodeURIComponent(
+        `Hola, necesito soporte técnico. Mi número es ${user}`
+      );
+
+      return `👨‍💻 https://wa.me/${supportNumber}?text=${message}`;
+    }
 
     return `
-📝 Perfecto, vamos a crear un ticket.
+❓ *Ayuda General*
 
-Por favor descríbeme el problema que estás teniendo con tu PC.
+1️⃣ Crear ticket  
+2️⃣ Estado de ticket  
+3️⃣ Problemas comunes  
+4️⃣ Soporte humano  
+
+O escribe *menu* para volver.
 `;
   }
 
-  // ===== CREAR TICKET =====
-  if (userState?.stage === "CREAR_TICKET") {
-    const descripcion = text;
+  // =========================
+  // 🔥 CREAR TICKET
+  // =========================
+  if (userState.stage === "CREAR_TICKET") {
 
-    const ticket = await createTicket(user, descripcion, phoneNumberId);
+    if (!text || text.trim().length < 3) {
+      return "📝 Describe mejor tu problema.";
+    }
 
-    // 👇 ahora guardamos ticketId para archivo
+    const ticket = await createTicket(user, text, phoneNumberId);
+
     setUserState(user, {
       stage: "ENVIAR_ARCHIVO",
       ticketId: ticket.id,
@@ -68,64 +204,32 @@ Por favor descríbeme el problema que estás teniendo con tu PC.
 
 🆔 ID: ${ticket.code}
 
-Ahora puedes enviar un archivo si lo deseas 📎
+Ahora puedes enviar un archivo 📎
 O escribe *menu* para volver.
 `;
   }
 
-  // ===== OPCIÓN 2 =====
-  if (msg === "2") {
-    setUserState(user, null);
+  // =========================
+  // 🔥 CONSULTAR TICKET
+  // =========================
+  if (userState.stage === "CONSULTAR_TICKET") {
 
-    const tenant = await getTenantByPhoneNumberId(phoneNumberId);
-    const supportNumber = tenant.supportNumber;
-
-    if (!supportNumber) {
-      return "⚠️ No hay número de soporte configurado.";
-    }
-
-    const message = encodeURIComponent(
-      `Hola, necesito soporte técnico. Mi número es ${user}`
-    );
-
-    const link = `https://wa.me/${supportNumber}?text=${message}`;
-
-    return `
-👨‍💻 *Soporte humano*
-
-👉 ${link}
-`;
-  }
-
-  // ===== OPCIÓN 3 =====
-  if (msg === "3") {
-    setUserState(user, { stage: "CONSULTAR_TICKET" });
-
-    return "🔍 Envíame el ID del ticket";
-  }
-
-  // ===== CONSULTAR =====
-  if (userState?.stage === "CONSULTAR_TICKET") {
-    setUserState(user, null);
-
-    const code = parseInt(text);
+    const code = parseInt(normalizedMsg);
 
     if (isNaN(code)) {
-      return "⚠️ ID inválido";
+      return "⚠️ Envía un ID válido.";
     }
 
-    const ticket = await getTicketByCodeSecure(
-      code,
-      user,
-      phoneNumberId
-    );
+    const ticket = await getTicketByCodeSecure(code, user, phoneNumberId);
 
     if (!ticket) {
-      return "❌ No tienes acceso a ese ticket";
+      return "❌ No tienes acceso a ese ticket.";
     }
 
+    setUserState(user, { stage: "MENU" });
+
     return `
-📄 Ticket
+📄 *Ticket*
 
 🆔 ${ticket.code}
 📌 ${ticket.status}
@@ -133,76 +237,25 @@ O escribe *menu* para volver.
 `;
   }
 
-  // ===== OPCIÓN 4 =====
-  if (msg === "4") {
-    setUserState(user, { stage: "ENVIAR_ARCHIVO" });
+  // =========================
+  // 🔥 ENVIAR ARCHIVO
+  // =========================
+  if (userState.stage === "ENVIAR_ARCHIVO") {
 
-    return "📎 Envíame el archivo";
-  }
-
-  // ===== GUARDAR ARCHIVO =====
-  if (userState?.stage === "ENVIAR_ARCHIVO") {
     if (!media) {
       return "⚠️ Debes enviar un archivo.";
     }
 
-    const ticketId = userState.ticketId;
-
-    if (!ticketId) {
-      setUserState(user, { stage: "CREAR_TICKET_DESDE_ARCHIVO", media });
-
-      return `
-📎 Recibí tu archivo
-
-Para poder ayudarte necesito que me describas el problema.
-
-Escribe qué sucede con tu equipo 💻
-`;
-    }
     const tenant = await getTenantByPhoneNumberId(phoneNumberId);
 
-    await addAttachmentToTicket(
-      ticketId,
-      tenant.id,
-      userState.media
-    );
-    setUserState(user, null);
+    await addAttachmentToTicket(userState.ticketId!, tenant.id, media);
+
+    setUserState(user, { stage: "MENU" });
 
     return `
 📎 Archivo guardado correctamente
 
 Se adjuntó a tu ticket 🎫
-`;
-  }
-  // ===== CREAR TICKET DESDE ARCHIVO =====
-  if (userState?.stage === "CREAR_TICKET_DESDE_ARCHIVO") {
-    const descripcion = text;
-
-    const ticket = await createTicket(user, descripcion, phoneNumberId);
-
-    // 🔥 usamos el media guardado
-    await addAttachmentToTicket(ticket.id, phoneNumberId, userState.media);
-
-    setUserState(user, null);
-
-    return `
-🎫 Ticket creado con archivo adjunto
-
-🆔 ID: ${ticket.code}
-
-Un agente revisará tu caso 🙌
-`;
-  }
-
-  // ===== OPCIÓN 5 =====
-  if (msg === "5") {
-    return `
-❓ *Ayuda*
-
-1 → Crear ticket  
-2 → Soporte humano  
-3 → Ver ticket  
-4 → Enviar archivo
 `;
   }
 

@@ -16,7 +16,7 @@ model Tenant {
 
   users       User[]
   tickets     Ticket[]
-  attachments Attachment[] // 🔥 opcional pero útil para queries globales
+  attachments Attachment[]
 }
 
 model User {
@@ -41,7 +41,7 @@ model Ticket {
   user        User     @relation(fields: [userId], references: [id])
   tenant      Tenant   @relation(fields: [tenantId], references: [id])
 
-  attachments Attachment[] // 🔥 relación 1:N
+  attachments Attachment[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
